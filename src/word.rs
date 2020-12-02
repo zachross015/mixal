@@ -3,14 +3,14 @@ use crate::instruction::adjusted_field_specification;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Word {
-    pub sign: bool,
+    pub positive: bool,
     pub bytes: [u8; 5],
 }
 
 impl Word {
-    pub fn new(sign: bool, b: [u8; 5]) -> Word {
+    pub fn new(positive: bool, b: [u8; 5]) -> Word {
         Word {
-            sign: sign,
+            positive: positive,
             bytes: b,
         }
     }
@@ -20,14 +20,14 @@ impl Word {
     }
 
     pub fn from_value(value: i64) -> Word {
-        let sign = value < 0;
+        let positive = value < 0;
         let mut bytes : [u8; 5] = [0; 5];
         let mut value_mut = value.clone();
         for i in 0..5 {
-            bytes[i] = (value_mut % 256) as u8;
+            bytes[4 - i] = (value_mut % 256) as u8;
             value_mut = value_mut >> 8;
         }
-        Word::new(sign, bytes)
+        Word::new(positive, bytes)
     }
 
     pub fn address(&self) -> usize {
@@ -49,7 +49,7 @@ impl Word {
 
     pub fn negate(&self) -> Word {
         let mut new_word = self.clone();
-        new_word.sign = !new_word.sign;
+        new_word.positive = !new_word.positive;
         new_word
     }
 
@@ -62,14 +62,14 @@ impl Word {
             result = result << 8;
             result = result + (self.bytes[i] as i64);
         }
-        result * (if zero_included && !self.sign { -1 } else { 1 })
+        result * (if zero_included && !self.positive { -1 } else { 1 })
     }
 }
 
 impl fmt::Display for Word {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:>2} {:>4} {:>4} {:>4} {:>4} {:>4}", 
-            if self.sign { '+' } else { '-' },
+            if self.positive { '+' } else { '-' },
             self.bytes[0],
             self.bytes[1],
             self.bytes[2],

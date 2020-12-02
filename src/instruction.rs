@@ -5,7 +5,7 @@ use crate::word::{Word};
 /// specifications. 
 /// 
 /// The `word_zero_condition` checks first if the value zero is included in 
-/// the field specification. If it is, the sign of the receiving word is adjusted 
+/// the field specification. If it is, the positive of the receiving word is adjusted 
 /// to match that of the sending word. After that, the macro checks if 
 /// zero is the *only* part of the adjusted field specification, in which 
 /// the function is told to terminate since there is no further action to be 
@@ -18,15 +18,15 @@ use crate::word::{Word};
 /// - `only_zero`: Boolean of whether or not the value 0 is the only value in 
 /// the adjusted field specification. 
 /// - `from_word`: The sending word in the comparison. This is used to get the 
-/// `sign` of the sending word to adjust the receiver if necessary. 
+/// `positive` of the sending word to adjust the receiver if necessary. 
 /// - `to_word`: The receiving word in the comparison. This is necessary 
-/// so its `sign` value can be adjusted if zero is part of the adjusted field 
+/// so its `positive` value can be adjusted if zero is part of the adjusted field 
 /// specification.
 /// 
 macro_rules! word_zero_condition {
     ($z:ident, $o:ident, $f:ident, $t:ident) => {
         if $z {
-            $t.sign = $f.sign;
+            $t.positive = $f.positive;
             if $o {
                 return;
             }
@@ -84,8 +84,8 @@ macro_rules! create_instruction {
 /// Provides a useful conversion for the field specification of a MIX command. 
 /// 
 /// In the documentation for MIX, a word is laid out from left to right as the 
-/// indices 0-6, with the 0-byte indicating the sign. In the program implementation,
-/// we instead have the sign byte as just a boolean value, while the rest of the 
+/// indices 0-6, with the 0-byte indicating the positive. In the program implementation,
+/// we instead have the positive byte as just a boolean value, while the rest of the 
 /// bytes are the 0-5 indices of the word. This function takes the given 
 /// field specification and gives us the tuple informing us of critical properties.
 /// 
@@ -205,11 +205,11 @@ pub fn add_words(word1: &Word, word2: &Word, field_specification: (usize, usize)
 
     let (zero_included, only_zero, (l, r)) = adjusted_field_specification(field_specification);
     if only_zero {
-        panic!("[Error add_words] Can't add two numbers solely by their sign. (Input given {:#?})", field_specification);
+        panic!("[Error add_words] Can't add two numbers solely by their positive. (Input given {:#?})", field_specification);
     }
 
     if zero_included {
-        word.sign = if sum >= 0 { true } else { false };
+        word.positive = if sum >= 0 { true } else { false };
     }
 
     sum = sum.abs();
@@ -234,12 +234,12 @@ pub fn multiply_words(word1: &Word, word2: &Word, field_specification: (usize, u
 
     let (zero_included, only_zero, _) = adjusted_field_specification(field_specification);
     if only_zero {
-        panic!("[Error multiply_words] Can't multiply two numbers solely by their sign. (Input given {:#?})", field_specification);
+        panic!("[Error multiply_words] Can't multiply two numbers solely by their positive. (Input given {:#?})", field_specification);
     }
 
     if zero_included {
-        word_lower.sign = if product >= 0 { true } else { false };
-        word_upper.sign = word_lower.sign;
+        word_lower.positive = if product >= 0 { true } else { false };
+        word_upper.positive = word_lower.positive;
     }
 
     product = product.abs();
@@ -276,12 +276,12 @@ pub fn divide_words(word1: &Word, word2: &Word, word3: &Word, field_specificatio
 
     let (zero_included, only_zero, _) = adjusted_field_specification(field_specification);
     if only_zero {
-        panic!("[Error divide_words] Can't divide two numbers solely by their sign. (Input given {:#?})", field_specification);
+        panic!("[Error divide_words] Can't divide two numbers solely by their positive. (Input given {:#?})", field_specification);
     }
 
-    word_rem.sign = word1.sign;
+    word_rem.positive = word1.positive;
     if zero_included {
-        word_div.sign = word1.sign == word3.sign;
+        word_div.positive = word1.positive == word3.positive;
     }
 
     dividend = dividend;
@@ -310,21 +310,21 @@ create_instruction!(LoadA, address: usize, field_specification: (usize, usize), 
     let ra =  &mut computer.ra;
     let mem = &computer.memory[self.address];
     copy_word_fields(mem, ra, self.field_specification);
-    if self.negative { ra.sign = !ra.sign; }
+    if self.negative { ra.positive = !ra.positive; }
 });
 
 create_instruction!(LoadX, address: usize, field_specification: (usize, usize), negative: bool, (self, computer) {
     let rx =  &mut computer.rx;
     let mem = &computer.memory[self.address];
     copy_word_fields(mem, rx, self.field_specification);
-    if self.negative { rx.sign = !rx.sign; }
+    if self.negative { rx.positive = !rx.positive; }
 });
 
 create_instruction!(LoadI, index: u8, address: usize, field_specification: (usize, usize), negative: bool, (self, computer) {
     let mem = &computer.memory[self.address].clone();
     let ri =  register_for_index(computer, self.index);
     copy_word_fields_i(mem, ri, self.field_specification);
-    if self.negative { ri.sign = !ri.sign; }
+    if self.negative { ri.positive = !ri.positive; }
 });
 
 create_instruction!(StoreA, address: usize, field_specification: (usize, usize), (self, computer) {
@@ -379,8 +379,46 @@ create_instruction!(Div, address: usize, field_specification: (usize, usize) , (
     computer.overflow_flag = overflow;
 });
 
-create_instruction!(EntA, value: usize, sign: bool, (self, computer) {
+create_instruction!(EntA, value: usize, entry_is_positive: bool, should_negate: bool, (self, computer) {
     let mut word = Word::from_value(self.value as i64);
-    word.sign = self.sign;
+    word.positive = if self.should_negate { !self.entry_is_positive } else { self.entry_is_positive };
     copy_word_fields(&word, &mut computer.ra, (0, 5));
+});
+
+create_instruction!(EntX, value: usize, entry_is_positive: bool, should_negate: bool, (self, computer) {
+    let mut word = Word::from_value(self.value as i64);
+    word.positive = if self.should_negate { !self.entry_is_positive } else { self.entry_is_positive };
+    copy_word_fields(&word, &mut computer.rx, (0, 5));
+});
+
+create_instruction!(EntI, index: u8, value: usize, entry_is_positive: bool, should_negate: bool, (self, computer) {
+    let mut word = Word::from_value(self.value as i64);
+    word.positive = if self.should_negate { !self.entry_is_positive } else { self.entry_is_positive };
+    let mut ri =  register_for_index(computer, self.index);
+    copy_word_fields_i(&word, &mut ri, (0,5));
+});
+
+create_instruction!(IncA, value: usize, entry_is_positive: bool, should_negate: bool, (self, computer) {
+    let mut word = Word::from_value(self.value as i64);
+    word.positive = if self.should_negate { !self.entry_is_positive } else { self.entry_is_positive };
+    let (value, overflow) = add_words(&computer.ra, &word, (0,5));
+    copy_word_fields(&value, &mut computer.ra, (0, 5));
+    computer.overflow_flag = overflow;
+});
+
+create_instruction!(IncX, value: usize, entry_is_positive: bool, should_negate: bool, (self, computer) {
+    let mut word = Word::from_value(self.value as i64);
+    word.positive = if self.should_negate { !self.entry_is_positive } else { self.entry_is_positive };
+    let (value, overflow) = add_words(&computer.rx, &word, (0,5));
+    copy_word_fields(&value, &mut computer.rx, (0, 5));
+    computer.overflow_flag = overflow;
+});
+
+create_instruction!(IncI, index: u8, value: usize, entry_is_positive: bool, should_negate: bool, (self, computer) {
+    let mut word = Word::from_value(self.value as i64);
+    word.positive = if self.should_negate { !self.entry_is_positive } else { self.entry_is_positive };
+    let mut ri =  register_for_index(computer, self.index);
+    let (value, overflow) = add_words(&ri, &word, (0,5));
+    copy_word_fields(&value, &mut ri, (0, 5));
+    computer.overflow_flag = overflow;
 });

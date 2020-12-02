@@ -27,7 +27,7 @@ fn copy_word_fields_partial() {
     let right = 2;
     copy_word_fields(&word1, &mut word2, (left, right));
 
-    assert_eq!(word1.sign, word2.sign);
+    assert_eq!(word1.positive, word2.positive);
     for i in 0..=1 {
         assert_eq!(word1.bytes[i], word2.bytes[i]);
     }
@@ -44,7 +44,7 @@ fn copy_word_fields_single() {
     let right = 2;
     copy_word_fields(&word1, &mut word2, (left, right));
 
-    assert_ne!(word1.sign, word2.sign);
+    assert_ne!(word1.positive, word2.positive);
     for i in 0..=0 {
         assert_ne!(word1.bytes[i], word2.bytes[i]);
     }
@@ -56,9 +56,9 @@ fn copy_word_fields_single() {
 
 fn excluse_bits_equivalent_full(word1: &Word, word2: &Word, (begin, end): (usize, usize)) {
     if begin == 0 {
-        assert_eq!(word1.sign, word2.sign);
+        assert_eq!(word1.positive, word2.positive);
     } else {
-        assert_ne!(word1.sign, word2.sign);
+        assert_ne!(word1.positive, word2.positive);
     }
     for i in 0..=4 {
         if (begin..=end).contains(&(i + 1)) {
@@ -73,9 +73,9 @@ fn excluse_bits_equivalent_full(word1: &Word, word2: &Word, (begin, end): (usize
 fn excluse_bits_equivalent_index(word1: &Word, word2: &Word, (begin, end): (usize, usize)) {
     let (l, r) = (begin.max(1) - 1, end.max(1) - 1);
     if begin == 0 {
-        assert_eq!(word1.sign, word2.sign);
+        assert_eq!(word1.positive, word2.positive);
     } else {
-        assert_ne!(word1.sign, word2.sign);
+        assert_ne!(word1.positive, word2.positive);
     }
 
     for i in 0..=2 {
@@ -112,7 +112,7 @@ fn test_load_a_with_range(begin: usize, end: usize) {
         negative: false
     };
     rand_fill_range(&mut computer.memory[ADDRESS], 0, 4);
-    computer.memory[ADDRESS].sign = false;
+    computer.memory[ADDRESS].positive = false;
     load.execute_on(computer);
     println!("[{}] [{}]", computer.memory[ADDRESS], computer.ra);
     excluse_bits_equivalent_full(&computer.ra, &computer.memory[ADDRESS], load.field_specification);
@@ -127,7 +127,7 @@ fn test_load_i_with_range(begin: usize, end: usize) {
     };
     let computer = &mut Computer::default();
     rand_fill_range(&mut computer.memory[ADDRESS], 0, 4);
-    computer.memory[ADDRESS].sign = false;
+    computer.memory[ADDRESS].positive = false;
     load.execute_on(computer);
     println!("[{}] [{}]", computer.memory[ADDRESS], computer.ri1);
     excluse_bits_equivalent_index(&computer.ri1, &computer.memory[ADDRESS], load.field_specification);
@@ -403,3 +403,39 @@ fn div_full() {
     assert_eq!(output, should_be);
 }
 
+#[test]
+fn enta_1000() {
+    let mut computer = Computer::default();
+    let instruction = EntA::new(1000, true, false);
+    instruction.execute_on(&mut computer);
+    println!("{:#?} {:#?}", Word::new(true, [0,0,0,3,232]), computer.ra);
+    assert_eq!(Word::new(true, [0,0,0,3,232]), computer.ra);
+}
+
+
+#[test]
+fn enta_neg_0() {
+    let mut computer = Computer::default();
+    let instruction = EntA::new(0, false, false);
+    instruction.execute_on(&mut computer);
+    println!("{:#?} {:#?}", Word::new(false, [0,0,0,0,0]), computer.ra);
+    assert_eq!(Word::new(false, [0,0,0,0,0]), computer.ra);
+}
+
+#[test]
+fn inc_1_1() {
+    let mut computer = Computer::default();
+    let instruction = IncI::new(1, 1, true, false);
+    instruction.execute_on(&mut computer);
+    println!("{:#?} {:#?}", Word::new(true, [0,0,0,0,1]), computer.ri1);
+    assert_eq!(Word::new(true, [0,0,0,0,1]), computer.ri1);
+}
+
+#[test]
+fn dec_1_1() {
+    let mut computer = Computer::default();
+    let instruction = IncI::new(1, 1, true, true);
+    instruction.execute_on(&mut computer);
+    println!("{:#?} {:#?}", Word::new(false, [0,0,0,0,1]), computer.ri1);
+    assert_eq!(Word::new(false, [0,0,0,0,1]), computer.ri1);
+}

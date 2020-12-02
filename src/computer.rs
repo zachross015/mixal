@@ -81,7 +81,7 @@ impl Computer {
         // Handle the index register
         let offset_address = address + self.decode_index(&index);
         let field_specification = self.decode_field(&field);
-        let sign = instruction.sign;
+        let positive = instruction.positive;
 
         
        let inst : Box<dyn Instruction> = match opcode {
@@ -101,7 +101,27 @@ impl Computer {
             31 => boxed!(StoreX, offset_address, field_specification),
             32 => boxed!(StoreJ, offset_address, field_specification),
             33 => boxed!(StoreZ, offset_address, field_specification),
-            48 => boxed!(EntA, offset_address, sign),
+            48 => match instruction.field() {
+                0 => boxed!(IncA, offset_address, positive, false),
+                1 => boxed!(IncA, offset_address, positive, true),
+                2 => boxed!(EntA, offset_address, positive, false),
+                3 => boxed!(EntA, offset_address, positive, true),
+                _ => boxed!(NoOperation),
+            }
+            49 | 50 | 51 | 52 | 53 | 54 => match instruction.field() {
+                0 => Box::new(IncI::new(opcode - 48, offset_address, positive, false)),
+                1 => Box::new(IncI::new(opcode - 48, offset_address, positive, true)),
+                2 => Box::new(EntI::new(opcode - 48, offset_address, positive, false)),
+                3 => Box::new(EntI::new(opcode - 48, offset_address, positive, true)),
+                _ => boxed!(NoOperation),
+            }
+            55 => match instruction.field() {
+                0 => boxed!(IncX, offset_address, positive, false),
+                1 => boxed!(IncX, offset_address, positive, true),
+                2 => boxed!(EntX, offset_address, positive, false),
+                3 => boxed!(EntX, offset_address, positive, true),
+                _ => boxed!(NoOperation),
+            }
             _ => boxed!(NoOperation),
         };
 
