@@ -1,0 +1,34 @@
+Fields ::= “(“, <integer>, “:”, <integer>, “)”;
+Argument ::= “(“, <integer>, “)”;
+Index ::= 1 | 2 | 3 | 4 | 5;
+Register ::= “A” | “X” | <Index>;
+Address ::= 0 | 1 | ... | 3998 | 3999;
+
+JumpInstructionArgs ::= (“L” | “G”), [“E”] 
+| [“N”], “E” 
+| <Register>, [“N”], (“N” | “P”) 
+| <Register>, [“N”], “Z”
+| (“MP” | “SJ” | [“N”], “OV”);
+
+OnlyInstructionName ::= “NOP” 
+| “HALT”
+| “NUM”
+| “CHAR”;
+FieldInstructionName ::= “LD”, <Register>, [“N”] 
+| “ST”, (<Register> | “Z” | “J”) 
+| (“ADD” | “SUB” | “MUL” | “DIV”);
+NonFieldInstructionName ::= “EN”, (“T” | “N”), <Register>
+| (“INC” | “DEC” | “CMP”), <Register> 
+| “J”, <JumpInstructionArgs>
+| “S”, (“L” | “R”), (“A”, [“X”] | “C”);
+ArgInstructionName ::= “MOVE” 
+	| “IN”
+	| “OUT”
+	| “IOC”
+	| “JRED”
+	| “JBUS”;
+
+Instruction ::= <OnlyInstructionName>
+	| <FieldInstructionName>, “ “, <Address>, “,”, <Index>, [<Fields>]
+	| <NonFieldInstructionName>, “ “, <Address>, “,”, <Index>
+	| <ArgInstructionName>, “ “, <Address>, “,”, <Index>, [<Argument>];
