@@ -1,4 +1,4 @@
-use crate::computer::Computer;
+use crate::computer::{Computer, ComparisonFlag};
 use crate::word::{Word};
 
 /// Provides a useful macro for checking conditions involving adjusted field 
@@ -197,6 +197,7 @@ pub fn register_for_index(computer: &mut Computer, index: u8) -> &mut Word {
 }
 
 /// Adds two words 
+/// TODO: Document this
 pub fn add_words(word1: &Word, word2: &Word, field_specification: (usize, usize)) -> (Word, bool) {
     let word1_value = word1.field_value(field_specification).clone();
     let word2_value = word2.field_value(field_specification);
@@ -205,7 +206,7 @@ pub fn add_words(word1: &Word, word2: &Word, field_specification: (usize, usize)
 
     let (zero_included, only_zero, (l, r)) = adjusted_field_specification(field_specification);
     if only_zero {
-        panic!("[Error add_words] Can't add two numbers solely by their positive. (Input given {:#?})", field_specification);
+        panic!("[Error add_words] Can't add two numbers solely by their sign. (Input given {:#?})", field_specification);
     }
 
     if zero_included {
@@ -225,6 +226,7 @@ pub fn add_words(word1: &Word, word2: &Word, field_specification: (usize, usize)
     (word, false)
 }
 
+/// TODO: Document this
 pub fn multiply_words(word1: &Word, word2: &Word, field_specification: (usize, usize)) -> (Word, Word) {
     let word1_value = word1.field_value((0,5)).clone();
     let word2_value = word2.field_value(field_specification);
@@ -259,7 +261,7 @@ pub fn multiply_words(word1: &Word, word2: &Word, field_specification: (usize, u
     (word_upper, word_lower)
 }
 
-/// TODO: Test this.
+/// TODO: Document this
 pub fn divide_words(word1: &Word, word2: &Word, word3: &Word, field_specification: (usize, usize)) -> (Word, Word, bool) {
     let mut word_rem = Word::default();
     let mut word_div = Word::default();
@@ -294,6 +296,38 @@ pub fn divide_words(word1: &Word, word2: &Word, word3: &Word, field_specificatio
     }
 
     (word_div, word_rem, false)
+}
+
+/// TODO: Document this
+pub fn compare_words(word1: &Word, word2: &Word, field_specification: (usize, usize)) -> ComparisonFlag {
+    let (zero_included, only_zero, (left, right)) = adjusted_field_specification(field_specification);
+
+    if only_zero {
+        return ComparisonFlag::equal;
+    }
+
+    if zero_included && word1.positive != word2.positive {
+        if word1.positive == true {
+            return ComparisonFlag::greater;
+        } else {
+            return ComparisonFlag::less;
+        }
+    }
+
+    for i in left..=right {
+        if word1.bytes[i] > word2.bytes[i] {
+            return ComparisonFlag::greater;
+        } else if word1.bytes[i] < word2.bytes[i] {
+            return ComparisonFlag::less;
+        }
+    }
+
+    ComparisonFlag::equal
+}
+
+pub fn save_jump(computer: &mut Computer) {
+    let old_address = Word::from_value((computer.pc.clone() + 1) as i64);    
+    copy_word_fields(&old_address, &mut computer.rj, (0,5));
 }
 
 /// MARK: Instructions
@@ -421,4 +455,55 @@ create_instruction!(IncI, index: u8, value: usize, entry_is_positive: bool, shou
     let (value, overflow) = add_words(&ri, &word, (0,5));
     copy_word_fields(&value, &mut ri, (0, 5));
     computer.overflow_flag = overflow;
+});
+
+create_instruction!(CmpA, address: usize, field_specification: (usize, usize), (self, computer) {
+    let result = compare_words(&computer.ra, &computer.memory[self.address], self.field_specification);
+    computer.comparison_flag = result;
+});
+
+create_instruction!(CmpX, address: usize, field_specification: (usize, usize), (self, computer) {
+    let result = compare_words(&computer.rx, &computer.memory[self.address], self.field_specification);
+    computer.comparison_flag = result;
+});
+
+create_instruction!(CmpI, index: u8, address: usize, field_specification: (usize, usize), (self, computer) {
+    let mem = computer.memory[self.address].clone();
+    let ri =  register_for_index(computer, self.index);
+    let result = compare_words(&ri, &mem, self.field_specification);
+    computer.comparison_flag = result;
+});
+
+create_instruction!(Jmp, address: usize, save_address: bool, (self, computer) {
+    if self.save_address {
+        save_jump(computer);
+    }
+    computer.pc = self.address;
+});
+
+create_instruction!(JmpO, address: usize, should_negate: bool, (self, computer) {
+    if computer.overflow_flag.clone() != self.should_negate {
+        save_jump(computer);
+        computer.pc = self.address;
+    }
+    computer.overflow_flag = false;
+});
+
+create_instruction!(JmpC, address: usize, operation: u8, (self, computer) {
+    let condition = match self.operation {
+        4 => computer.comparison_flag == ComparisonFlag::less,
+        5 => computer.comparison_flag == ComparisonFlag::equal,
+        6 => computer.comparison_flag == ComparisonFlag::greater,
+        7 => computer.comparison_flag != ComparisonFlag::greater,
+        8 => computer.comparison_flag != ComparisonFlag::equal,
+        9 => computer.comparison_flag != ComparisonFlag::less,
+        _ => false,
+    };
+    if condition {
+        save_jump(computer);
+        computer.pc = self.address;
+    }
+});
+
+create_instruction!(JmpA, address: usize, operation: u8, (self, computer) {
 });

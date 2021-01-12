@@ -439,3 +439,43 @@ fn dec_1_1() {
     println!("{:#?} {:#?}", Word::new(false, [0,0,0,0,1]), computer.ri1);
     assert_eq!(Word::new(false, [0,0,0,0,1]), computer.ri1);
 }
+
+#[test]
+fn cmpa_0_0() {
+    let word1 = Word::new(true, [1,1,1,1,1]);
+    let word2 = Word::new(false, [1,1,1,1,1]);
+    let output = compare_words(&word1, &word2, (0, 0));
+    let should_be = ComparisonFlag::equal;
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
+
+#[test]
+fn cmpa_full() {
+    let word1 = Word::new(true, [1,1,1,1,1]);
+    let word2 = Word::new(false, [1,1,1,1,1]);
+    let output = compare_words(&word1, &word2, (0, 5));
+    let should_be = ComparisonFlag::greater;
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
+
+#[test]
+fn cmpa_full_less() {
+    let word2 = Word::new(true, [1,1,1,1,1]);
+    let word1 = Word::new(false, [1,1,1,1,1]);
+    let output = compare_words(&word1, &word2, (0, 5));
+    let should_be = ComparisonFlag::less;
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
+
+#[test]
+fn cmpa_1_5() {
+    let word1 = Word::new(false, [1,1,1,1,1]);
+    let word2 = Word::new(true, [1,1,1,1,1]);
+    let output = compare_words(&word1, &word2, (1, 5));
+    let should_be = ComparisonFlag::equal;
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
