@@ -14,11 +14,22 @@ macro_rules! boxed {
     };
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum ComparisonFlag {
     less,
     equal,
     greater
+}
+
+impl fmt::Display for ComparisonFlag {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let st = match self {
+            ComparisonFlag::less => "Less",
+            ComparisonFlag::equal => "Equal",
+            ComparisonFlag::greater => "Greater",
+        };
+        write!(f, "{}", st)
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -83,7 +94,10 @@ impl Computer {
     }
 
     fn decode(&mut self, instruction: &Word) ->  Box<dyn Instruction> {
-        let (address, index, field, opcode) = (instruction.address(), instruction.index(), instruction.field(), instruction.opcode());
+        let (address, index, field, opcode) = (instruction.address(), 
+                                               instruction.index(), 
+                                               instruction.field(), 
+                                               instruction.opcode());
 
         // Handle the index register
         let offset_address = address + self.decode_index(&index);
@@ -100,7 +114,16 @@ impl Computer {
             5 => match field {
                 2 => boxed!(Halt),
                 _ => boxed!(NoOperation)
-            }
+            },
+            6 => match field {
+                0 => boxed!(SLA, address, false),
+                1 => boxed!(SRA, address, false),
+                2 => boxed!(SLAX, address),
+                3 => boxed!(SRAX, address),
+                4 => boxed!(SLA, address, true),
+                5 => boxed!(SRA, address, true),
+                _ => boxed!(NoOperation),
+            }, 
             8 => boxed!(LoadA, offset_address, field_specification, false),
             9 | 10 | 11 | 12 | 13 | 14 => boxed!(LoadI, opcode - 8, offset_address, field_specification, false),
             15 => boxed!(LoadX, offset_address, field_specification, false),
@@ -120,6 +143,9 @@ impl Computer {
                 4 | 5 | 6 | 7 | 8 | 9 => boxed!(JmpC, address, field),
                 _ => boxed!(NoOperation),
             },
+            40 => boxed!(JmpA, address, field),
+            41 | 42 | 43 | 44 | 45 | 46 => boxed!(JmpI, opcode - 40, address, field),
+            47 => boxed!(JmpX, address, field),
             48 => match field {
                 0 => boxed!(IncA, offset_address, positive, false),
                 1 => boxed!(IncA, offset_address, positive, true),

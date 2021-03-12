@@ -479,3 +479,198 @@ fn cmpa_1_5() {
     println!("{:} {:}", output, should_be);
     assert_eq!(output, should_be);
 }
+
+
+#[test]
+fn single_word_left_shift_1() {
+    let word1 = Word::new(false, [1,2,3,4,5]);
+    let output = single_word_left_shift(&word1, 1, false);
+    let should_be = Word::new(false, [2,3,4,5,0]);
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
+
+#[test]
+fn single_word_left_shift_3() {
+    let word1 = Word::new(false, [1,2,3,4,5]);
+    let output = single_word_left_shift(&word1, 3, false);
+    let should_be = Word::new(false, [4,5,0,0,0]);
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
+
+#[test]
+fn single_word_left_shift_5() {
+    let word1 = Word::new(true, [1,2,3,4,5]);
+    let output = single_word_left_shift(&word1, 5, false);
+    let should_be = Word::default();
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
+
+#[test]
+fn single_word_left_shift_cycle_1() {
+    let word1 = Word::new(false, [1,2,3,4,5]);
+    let output = single_word_left_shift(&word1, 1, true);
+    let should_be = Word::new(false, [2,3,4,5,1]);
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
+
+#[test]
+fn single_word_left_shift_cycle_3() {
+    let word1 = Word::new(false, [1,2,3,4,5]);
+    let output = single_word_left_shift(&word1, 3, true);
+    let should_be = Word::new(false, [4,5,1,2,3]);
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
+
+#[test]
+fn single_word_left_shift_cycle_5() {
+    let word1 = Word::new(true, [1,2,3,4,5]);
+    let output = single_word_left_shift(&word1, 5, true);
+    let should_be = word1.clone();
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
+
+#[test]
+fn single_word_right_shift_1() {
+    let word1 = Word::new(false, [1,2,3,4,5]);
+    let output = single_word_right_shift(&word1, 1, false);
+    let should_be = Word::new(false, [0,1,2,3,4]);
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
+
+#[test]
+fn single_word_right_shift_3() {
+    let word1 = Word::new(false, [1,2,3,4,5]);
+    let output = single_word_right_shift(&word1, 3, false);
+    let should_be = Word::new(false, [0,0,0,1,2]);
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
+
+#[test]
+fn single_word_right_shift_5() {
+    let word1 = Word::new(true, [1,2,3,4,5]);
+    let output = single_word_right_shift(&word1, 5, false);
+    let should_be = Word::default();
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
+
+#[test]
+fn single_word_right_shift_cycle_1() {
+    let word1 = Word::new(false, [1,2,3,4,5]);
+    let output = single_word_right_shift(&word1, 1, true);
+    let should_be = Word::new(false, [5,1,2,3,4]);
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
+
+#[test]
+fn single_word_right_shift_cycle_3() {
+    let word1 = Word::new(false, [1,2,3,4,5]);
+    let output = single_word_right_shift(&word1, 3, true);
+    let should_be = Word::new(false, [3,4,5,1,2]);
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
+
+#[test]
+fn single_word_right_shift_cycle_5() {
+    let word1 = Word::new(true, [1,2,3,4,5]);
+    let output = single_word_right_shift(&word1, 5, true);
+    let should_be = word1.clone();
+    println!("{:} {:}", output, should_be);
+    assert_eq!(output, should_be);
+}
+
+#[test]
+fn save_jump_test() {
+    let mut computer = Computer::default();
+    computer.pc = 20;
+    save_jump(&mut computer);
+    assert_eq!(Word::new(true, [0,0,0,0,21]), computer.rj);
+}
+
+#[test]
+fn double_word_left_shift_1() {
+    let word1 = Word::new(true, [1,2,3,4,5]);
+    let word2 = Word::new(true, [6,7,8,9,0]);
+    let (output1, output2) = double_word_left_shift(&word1, &word2, 1);
+    let should_be1 = Word::new(true, [2,3,4,5,6]);
+    let should_be2 = Word::new(true, [7,8,9,0,0]);
+    println!("{:} {:}", output1, should_be1);
+    println!("{:} {:}", output2, should_be2);
+    assert_eq!(output1, should_be1);
+    assert_eq!(output2, should_be2);
+}
+
+#[test]
+fn double_word_left_shift_3() {
+    let word1 = Word::new(true, [1,2,3,4,5]);
+    let word2 = Word::new(true, [6,7,8,9,0]);
+    let (output1, output2) = double_word_left_shift(&word1, &word2, 3);
+    let should_be1 = Word::new(true, [4,5,6,7,8]);
+    let should_be2 = Word::new(true, [9,0,0,0,0]);
+    println!("{:} {:}", output1, should_be1);
+    println!("{:} {:}", output2, should_be2);
+    assert_eq!(output1, should_be1);
+    assert_eq!(output2, should_be2);
+}
+
+#[test]
+fn double_word_left_shift_5() {
+    let word1 = Word::new(true, [1,2,3,4,5]);
+    let word2 = Word::new(true, [6,7,8,9,0]);
+    let (output1, output2) = double_word_left_shift(&word1, &word2, 5);
+    let should_be1 = Word::new(true, [6,7,8,9,0]);
+    let should_be2 = Word::new(true, [0,0,0,0,0]);
+    println!("{:} {:}", output1, should_be1);
+    println!("{:} {:}", output2, should_be2);
+    assert_eq!(output1, should_be1);
+    assert_eq!(output2, should_be2);
+}
+
+#[test]
+fn double_word_right_shift_1() {
+    let word1 = Word::new(true, [1,2,3,4,5]);
+    let word2 = Word::new(true, [6,7,8,9,0]);
+    let (output1, output2) = double_word_right_shift(&word1, &word2, 1);
+    let should_be1 = Word::new(true, [0,1,2,3,4]);
+    let should_be2 = Word::new(true, [5,6,7,8,9]);
+    println!("{:} {:}", output1, should_be1);
+    println!("{:} {:}", output2, should_be2);
+    assert_eq!(output1, should_be1);
+    assert_eq!(output2, should_be2);
+}
+
+#[test]
+fn double_word_right_shift_3() {
+    let word1 = Word::new(true, [1,2,3,4,5]);
+    let word2 = Word::new(true, [6,7,8,9,0]);
+    let (output1, output2) = double_word_right_shift(&word1, &word2, 3);
+    let should_be1 = Word::new(true, [0,0,0,1,2]);
+    let should_be2 = Word::new(true, [3,4,5,6,7]);
+    println!("{:} {:}", output1, should_be1);
+    println!("{:} {:}", output2, should_be2);
+    assert_eq!(output1, should_be1);
+    assert_eq!(output2, should_be2);
+}
+
+#[test]
+fn double_word_right_shift_5() {
+    let word1 = Word::new(true, [1,2,3,4,5]);
+    let word2 = Word::new(true, [6,7,8,9,0]);
+    let (output1, output2) = double_word_right_shift(&word1, &word2, 5);
+    let should_be1 = Word::new(true, [0,0,0,0,0]);
+    let should_be2 = Word::new(true, [1,2,3,4,5]);
+    println!("{:} {:}", output1, should_be1);
+    println!("{:} {:}", output2, should_be2);
+    assert_eq!(output1, should_be1);
+    assert_eq!(output2, should_be2);
+}

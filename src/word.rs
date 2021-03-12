@@ -20,7 +20,7 @@ impl Word {
     }
 
     pub fn from_value(value: i64) -> Word {
-        let positive = value < 0;
+        let positive = value >= 0;
         let mut bytes : [u8; 5] = [0; 5];
         let mut value_mut = value.clone();
         for i in 0..5 {

@@ -1,5 +1,6 @@
 use crate::computer::{Computer, ComparisonFlag};
 use crate::word::{Word};
+use std::convert::TryInto;
 
 /// Provides a useful macro for checking conditions involving adjusted field 
 /// specifications. 
@@ -325,9 +326,10 @@ pub fn compare_words(word1: &Word, word2: &Word, field_specification: (usize, us
     ComparisonFlag::equal
 }
 
+// TODO: Document this <12-03-21, yourname> //
 pub fn save_jump(computer: &mut Computer) {
     let old_address = Word::from_value((computer.pc.clone() + 1) as i64);    
-    copy_word_fields(&old_address, &mut computer.rj, (0,5));
+    computer.rj = old_address;
 }
 
 /// MARK: Instructions
@@ -489,16 +491,20 @@ create_instruction!(JmpO, address: usize, should_negate: bool, (self, computer) 
     computer.overflow_flag = false;
 });
 
-create_instruction!(JmpC, address: usize, operation: u8, (self, computer) {
-    let condition = match self.operation {
-        4 => computer.comparison_flag == ComparisonFlag::less,
-        5 => computer.comparison_flag == ComparisonFlag::equal,
-        6 => computer.comparison_flag == ComparisonFlag::greater,
-        7 => computer.comparison_flag != ComparisonFlag::greater,
-        8 => computer.comparison_flag != ComparisonFlag::equal,
-        9 => computer.comparison_flag != ComparisonFlag::less,
+pub fn condition_match(op: u8, condition: ComparisonFlag) -> bool {
+    match op {
+        0 => condition == ComparisonFlag::less,
+        1 => condition == ComparisonFlag::equal,
+        2 => condition == ComparisonFlag::greater,
+        3 => condition != ComparisonFlag::less,
+        4 => condition != ComparisonFlag::equal,
+        5=> condition != ComparisonFlag::greater,
         _ => false,
-    };
+    }
+}
+
+create_instruction!(JmpC, address: usize, operation: u8, (self, computer) {
+    let condition = condition_match(self.operation - 4, computer.comparison_flag);
     if condition {
         save_jump(computer);
         computer.pc = self.address;
@@ -506,4 +512,190 @@ create_instruction!(JmpC, address: usize, operation: u8, (self, computer) {
 });
 
 create_instruction!(JmpA, address: usize, operation: u8, (self, computer) {
+    let zero = Word::default();
+    let result = compare_words(&computer.ra, &zero, (0, 5));
+    let condition = condition_match(self.operation, result);
+    if condition {
+        save_jump(computer);
+        computer.pc = self.address;
+    }
+});
+
+create_instruction!(JmpX, address: usize, operation: u8, (self, computer) {
+    let zero = Word::default();
+    let result = compare_words(&computer.rx, &zero, (0, 5));
+    let condition = condition_match(self.operation, result);
+    if condition {
+        save_jump(computer);
+        computer.pc = self.address;
+    }
+});
+
+create_instruction!(JmpI, index: u8, address: usize, operation: u8, (self, computer) {
+    let zero = Word::default();
+    let ri =  register_for_index(computer, self.index);
+    let result = compare_words(&ri, &zero, (0, 5));
+    let condition = condition_match(self.operation, result);
+    if condition {
+        save_jump(computer);
+        computer.pc = self.address;
+    }
+});
+
+
+/// Does a byte-wise left shift over a single word, performing the amount of shifts 
+/// specified by `amount` and only retaining a cyclical shift if `cycle` is set to true.
+///
+/// ## Arguments
+///
+/// `word` - The reference to a `Word` that is being shifted to the left
+/// `amount` - The `usize` indicating how many bytes the word should be shifted over
+/// `cycle` - A `bool` value specifying whether or not shift should cycle bytes back to the
+/// beginning that have gone before the beginning of the word boundary
+pub fn single_word_left_shift(word: &Word, amount: usize, cycle: bool) -> Word {
+    let mut r_copy = word.clone();
+    for i in 0..5 {
+        r_copy.bytes[i] = word.bytes[(amount + i) % 5];
+    }
+    if !cycle {
+        for i in (5 - amount).max(0)..5 {
+            r_copy.bytes[i] = 0;
+        }
+    }
+    r_copy
+}
+
+/// Does a byte-wise right shift over a single word, performing the amount of shifts 
+/// specified by `amount` and only retaining a cyclical shift if `cycle` is set to true.
+///
+/// ## Arguments
+///
+/// `word` - The reference to a `Word` that is being shifted to the right
+/// `amount` - The `usize` indicating how many bytes the word should be shifted over
+/// `cycle` - A `bool` value specifying whether or not shift should cycle bytes back to the
+/// beginning that have gone past the end of the word boundary
+pub fn single_word_right_shift(word: &Word, amount: usize, cycle: bool) -> Word {
+    let mut r_copy = word.clone();
+    for i in 0..5 {
+        r_copy.bytes[(amount + i) % 5] = word.bytes[i];
+    }
+    if !cycle {
+        for i in 0..amount.min(5) {
+            r_copy.bytes[i] = 0;
+        }
+    }
+    r_copy
+}
+
+/// Does a byte-wise left shift over two words, performing the amount of shifts specified by
+/// `amount`. This acts on the two words by seeing each of their individual bytes as being
+/// consecutive, and performing a left shift as if this was a 10 byte word.  The sign of each word
+/// is not altered and any bytes to the left of the farthest shifting byte will be set to 0.
+///
+/// ## Arguments
+///
+/// `word1` - The reference to the upper `Word` that is being shifted to the left
+/// `word2` - The reference to the lower `Word` that is being shifted to the left
+/// `amount` - The `usize` indicating how many bytes the word should be shifted over
+pub fn double_word_left_shift(word1: &Word, word2: &Word, amount: usize) -> (Word, Word) {
+    let mut w1_copy = word1.clone();
+    let mut w2_copy = word2.clone();
+    let mut vals = [0; 10];
+
+    // Set up `vals` to contain the 10 bytes of consecutive data
+    for i in 0..5 {
+        vals[i] = w1_copy.bytes[i];
+    }
+    for i in 5..10 {
+        vals[i] = w2_copy.bytes[i - 5];
+    }
+
+    // Set up `vals_shifted` to contain the modulus shifting of each byte
+    let mut vals_shifted = [0; 10];
+    if amount < 10 {
+        for i in 0..(10 - amount) {
+            vals_shifted[i] = vals[(amount + i) % 10];
+        }
+    }
+
+    // Set any excess bytes to 0
+    for i in (10 - amount).max(0)..10 {
+        vals_shifted[i] = 0;
+    }
+
+    // Slice the modulus shifted values into the byte arrays for each word, and set 
+    // each word to the corresponding value
+    w1_copy.bytes = vals_shifted[0..5].try_into().expect("Tried slice with incorrect length.");
+    w2_copy.bytes = vals_shifted[5..10].try_into().expect("Tried slice with incorrect length.");
+    (w1_copy, w2_copy)
+}
+
+/// Does a byte-wise right shift over two words, performing the amount of shifts specified by
+/// `amount`. This acts on the two words by seeing each of their individual bytes as being
+/// consecutive, and performing a right shift as if this was a 10 byte word.  The sign of each word
+/// is not altered and any bytes to the right of the farthest shifting byte will be set to 0.
+///
+/// ## Arguments
+///
+/// `word1` - The reference to the upper `Word` that is being shifted to the right
+/// `word2` - The reference to the lower `Word` that is being shifted to the right
+/// `amount` - The `usize` indicating how many bytes the word should be shifted over
+pub fn double_word_right_shift(word1: &Word, word2: &Word, amount: usize) -> (Word, Word) {
+    let mut w1_copy = word1.clone();
+    let mut w2_copy = word2.clone();
+    let mut vals = [0; 10];
+
+    // Set up `vals` to contain the 10 bytes of consecutive data
+    for i in 0..5 {
+        vals[i] = w1_copy.bytes[i];
+    }
+    for i in 5..10 {
+        vals[i] = w2_copy.bytes[i - 5];
+    }
+
+    // Set up `vals_shifted` to contain the modulus shifting of each byte
+    let mut vals_shifted = [0; 10];
+    if amount < 10 {
+        for i in 0..(10 - amount) {
+            vals_shifted[(amount + i) % 10] = vals[i];
+        }
+    }
+
+    // Set any excess bytes to 0
+    for i in 0..amount.min(10) {
+        vals_shifted[i] = 0;
+    }
+
+    // Slice the modulus shifted values into the byte arrays for each word, and set 
+    // each word to the corresponding value
+    w1_copy.bytes = vals_shifted[0..5].try_into().expect("Tried slice with incorrect length.");
+    w2_copy.bytes = vals_shifted[5..10].try_into().expect("Tried slice with incorrect length.");
+    (w1_copy, w2_copy)
+}
+
+
+create_instruction!(SLA, amount: usize, cycle: bool, (self, computer) {
+    let r = computer.ra.clone();
+    computer.ra = single_word_left_shift(&r, self.amount, self.cycle);
+});
+
+create_instruction!(SRA, amount: usize, cycle: bool, (self, computer) {
+    let r = computer.ra.clone();
+    computer.ra = single_word_right_shift(&r, self.amount, self.cycle);
+});
+
+create_instruction!(SLAX, amount: usize, (self, computer) {
+    let a = computer.ra.clone();
+    let x = computer.rx.clone();
+    let (ra, rx) = double_word_left_shift(&a, &x, self.amount);
+    computer.ra = ra;
+    computer.rx = rx;
+});
+
+create_instruction!(SRAX, amount: usize, (self, computer) {
+    let a = computer.ra.clone();
+    let x = computer.rx.clone();
+    let (ra, rx) = double_word_right_shift(&a, &x, self.amount);
+    computer.ra = ra;
+    computer.rx = rx;
 });
