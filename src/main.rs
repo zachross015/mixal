@@ -2,6 +2,7 @@
 mod word;
 mod computer;
 mod instruction;
+mod instruction_functions;
 
 #[cfg(test)]
 mod tests;

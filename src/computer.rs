@@ -1,6 +1,7 @@
 use std::fmt;
 use crate::word::{Word};
 use crate::instruction::*;
+use crate::instruction_functions::register_for_index;
 
 macro_rules! boxed {
     ($name:ident) => {

@@ -1,6 +1,7 @@
 use crate::word::{Word};
 use crate::computer::*;
 use crate::instruction::*;
+use crate::instruction_functions::*;
 use rand::Rng;
 
 const ADDRESS: usize = 2000;

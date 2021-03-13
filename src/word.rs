@@ -1,5 +1,5 @@
 use std::fmt;
-use crate::instruction::adjusted_field_specification;
+use crate::instruction_functions::adjusted_field_specification;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Word {
